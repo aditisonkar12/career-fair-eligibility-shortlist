@@ -1,36 +1,312 @@
-/* Step 1: minimal baseline styling only.
-   Profile form, role cards, result list, and report layout are styled
-   when the corresponding UI is built in a later step. */
+/* Career Fair Eligibility Shortlist — presentation only.
+   Plain CSS, no framework. Business logic lives in the JS modules; this
+   file only styles what app.js renders. */
 
 * {
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
-  padding: 1.5rem;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: #1a1a1a;
-  background: #fafafa;
+:root {
+  --color-bg: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-border: #dfe3e8;
+  --color-text: #1c2128;
+  --color-muted: #5b6472;
+  --color-primary: #2f5fdb;
+  --color-primary-hover: #24499f;
+  --color-eligible: #1b8a4c;
+  --color-eligible-bg: #eafaf0;
+  --color-ineligible: #c23838;
+  --color-ineligible-bg: #fdecec;
+  --radius: 10px;
 }
 
-header h1 {
-  font-size: 1.4rem;
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.page {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.app-header h1 {
+  font-size: 1.5rem;
   margin: 0 0 0.25rem;
 }
 
-header p {
+.app-header p {
   margin: 0 0 1.5rem;
-  color: #555;
+  color: var(--color-muted);
 }
 
-#debug-output {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 1rem;
-  font-family: ui-monospace, Menlo, Consolas, monospace;
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.card h2 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+}
+
+/* --- Student profile form ------------------------------------------------ */
+
+#profile-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem 1.25rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.field--wide {
+  grid-column: 1 / -1;
+}
+
+.field label {
   font-size: 0.85rem;
-  white-space: pre-wrap;
-  max-width: 40rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.field input {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.field input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.btn {
+  padding: 0.55rem 1.1rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn--primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn--primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.btn--secondary {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.btn--secondary:hover {
+  background: #eef0f3;
+}
+
+/* --- Validation message --------------------------------------------------- */
+
+.validation-message {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  background: var(--color-ineligible-bg);
+  border: 1px solid var(--color-ineligible);
+  color: var(--color-ineligible);
+  font-size: 0.9rem;
+}
+
+.validation-message p {
+  margin: 0 0 0.3rem;
+  font-weight: 600;
+}
+
+.validation-message ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+/* --- Fixed role requirements ---------------------------------------------- */
+
+.role-requirements {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.85rem;
+}
+
+.role-card {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  background: #fbfbfc;
+}
+
+.role-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.role-card dl {
+  margin: 0;
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+}
+
+.role-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.role-card dt {
+  color: var(--color-muted);
+}
+
+.role-card dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 500;
+}
+
+/* --- Results header / summary ---------------------------------------------- */
+
+.results-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.results-header h2 {
+  margin: 0;
+}
+
+.summary {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+}
+
+.summary-stat--eligible strong {
+  color: var(--color-eligible);
+}
+
+.summary-stat--ineligible strong {
+  color: var(--color-ineligible);
+}
+
+/* --- Results list ------------------------------------------------------- */
+
+.results-placeholder {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.result-card {
+  border: 1px solid var(--color-border);
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.result-card--eligible {
+  border-left-color: var(--color-eligible);
+  background: var(--color-eligible-bg);
+}
+
+.result-card--ineligible {
+  border-left-color: var(--color-ineligible);
+  background: var(--color-ineligible-bg);
+}
+
+.result-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.result-card__role {
+  font-weight: 600;
+}
+
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+}
+
+.status-badge--eligible {
+  color: #fff;
+  background: var(--color-eligible);
+}
+
+.status-badge--ineligible {
+  color: #fff;
+  background: var(--color-ineligible);
+}
+
+.failure-reasons {
+  margin: 0.6rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  color: var(--color-ineligible);
+}
+
+/* --- Responsive ----------------------------------------------------------- */
+
+@media (max-width: 40rem) {
+  #profile-form {
+    grid-template-columns: 1fr;
+  }
+
+  .field--wide {
+    grid-column: auto;
+  }
 }

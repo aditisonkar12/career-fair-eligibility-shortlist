@@ -7,14 +7,70 @@
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-  <header>
-    <h1>Career Fair Eligibility Shortlist</h1>
-    <p>Step 3 checkpoint: data model + validation/normalization + eligibility engine only. No profile form, role list UI, or final results view yet.</p>
-  </header>
+  <div class="page">
+    <header class="app-header">
+      <h1>Career Fair Eligibility Shortlist</h1>
+      <p>Compare a student profile against the five fixed career-fair roles and see who qualifies.</p>
+    </header>
 
-  <!-- Temporary checkpoint output for Step 3. Removed once the real UI
-       (editable profile, role requirements, results, counts) is built. -->
-  <pre id="debug-output">Loading data…</pre>
+    <main class="layout">
+      <section class="card" aria-labelledby="profile-heading">
+        <h2 id="profile-heading">Student Profile</h2>
+        <form id="profile-form" novalidate>
+          <div class="field">
+            <label for="profile-branch">Branch</label>
+            <input type="text" id="profile-branch" name="branch" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="profile-cgpa">CGPA</label>
+            <input type="number" id="profile-cgpa" name="cgpa" step="0.1" min="0" max="10" />
+          </div>
+          <div class="field">
+            <label for="profile-graduation-year">Graduation Year</label>
+            <input type="number" id="profile-graduation-year" name="graduationYear" step="1" min="2000" max="2100" />
+          </div>
+          <div class="field">
+            <label for="profile-active-backlogs">Active Backlogs</label>
+            <input type="number" id="profile-active-backlogs" name="activeBacklogs" step="1" min="0" />
+          </div>
+          <div class="field field--wide">
+            <label for="profile-skills">Skills</label>
+            <input type="text" id="profile-skills" name="skills" placeholder="e.g. Git, Python, SQL" autocomplete="off" />
+          </div>
+
+          <div class="actions">
+            <button type="submit" id="evaluate-button" class="btn btn--primary">Evaluate</button>
+            <button type="button" id="load-sample-button" class="btn btn--secondary">Load Sample</button>
+            <button type="button" id="reset-button" class="btn btn--secondary">Reset</button>
+          </div>
+        </form>
+
+        <div id="validation-message" class="validation-message" role="alert" hidden></div>
+      </section>
+
+      <section class="card" aria-labelledby="roles-heading">
+        <h2 id="roles-heading">Fixed Role Requirements</h2>
+        <div id="role-requirements-list" class="role-requirements"></div>
+      </section>
+
+      <section class="card" aria-labelledby="results-heading">
+        <div class="results-header">
+          <h2 id="results-heading">Results</h2>
+          <div class="summary" id="eligibility-summary">
+            <span class="summary-stat summary-stat--eligible">
+              Eligible: <strong id="eligible-count">–</strong>
+            </span>
+            <span class="summary-stat summary-stat--ineligible">
+              Ineligible: <strong id="ineligible-count">–</strong>
+            </span>
+          </div>
+        </div>
+        <div id="results-list" class="results-list">
+          <p class="results-placeholder">Click Evaluate to check eligibility for the current profile.</p>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <script type="module" src="js/app.js"></script>
 </body>

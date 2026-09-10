@@ -293,3 +293,244 @@ only the eligibility engine and its sorting.
 
 None. No changes were needed to the Step 1 data model or the Step 2
 validation/normalization module to support this step.
+
+### Step 4 — UI + Result Rendering
+
+**What was implemented**
+
+- `index.html` rewritten as the real primary screen: a header, a Student
+  Profile form (Branch, CGPA, Graduation Year, Active Backlogs, Skills,
+  plus Evaluate/Load Sample/Reset buttons), a validation-message region,
+  a Fixed Role Requirements section (empty container, populated from
+  `ROLES` at runtime), and a Results section with an eligible/ineligible
+  summary and a results list. The Step 1–3 temporary debug `<pre>` was
+  removed now that real rendering exists.
+- `js/app.js` rewritten as the coordination layer: reads DOM elements,
+  wires the three actions, converts form input to a candidate profile,
+  and renders whatever `validation.js`/`eligibility.js` return. It
+  contains no validation or eligibility rules of its own.
+- `css/styles.css` rewritten with card-based sections, a responsive
+  two-column form grid, role-requirement cards, color-coded
+  eligible/ineligible result cards and status badges, and a mobile
+  breakpoint — plain CSS, no framework.
+- No routing, ranking, tracking, backend, or optional features beyond the
+  role-card-style results view were added.
+
+**Prompt used for this iteration**
+
+> Build the primary screen for the Career Fair Eligibility Shortlist
+> (Step 4 of 5) and wire it to the existing `data.js`, `validation.js`,
+> and `eligibility.js` modules — do not duplicate their rules in
+> `app.js`. One page: an editable profile form, the five fixed roles
+> rendered from `ROLES` (not hardcoded), Evaluate/Load Sample/Reset
+> actions, a validation-message area, and a results view with
+> eligible/ineligible counts. Evaluate must convert numeric form values
+> to real JavaScript numbers before calling `validateStudentProfile`; on
+> invalid input, show the validation error codes verbatim and clear any
+> previous results/counts instead of leaving them stale; on valid input,
+> normalize, evaluate all five roles, sort with the existing
+> `sortEligibilityResults`, and render that output unmodified — no
+> re-sorting or filtering of failure reasons in the UI. Reproduce the
+> built-in scenario (CF01/CF02 eligible; CF03/CF04/CF05 ineligible with
+> their exact failure reasons) and the CGPA-8.5 boundary scenario
+> exactly. Plain CSS only, compact and professional, no frameworks or
+> icon libraries.
+
+**How the UI connects to validation.js and eligibility.js**
+
+`app.js` imports `validateStudentProfile` / `normalizeStudentProfile`
+from `validation.js` and `evaluateEligibilityForRoles` /
+`sortEligibilityResults` from `eligibility.js`. `handleEvaluate` calls
+them in sequence — validate, then (only if valid) normalize, evaluate,
+sort — and hands the *unmodified* return values to the render functions.
+`renderResults` iterates `result.failureReasons` and prints each string
+as-is; it never reorders, filters, or regenerates a reason. The Fixed
+Role Requirements section is built once from the imported `ROLES` array
+via `renderRoleRequirements`, so role data is never duplicated as
+hardcoded HTML.
+
+**How Evaluate works**
+
+On submit: read the five raw form values; convert `cgpa`,
+`graduationYear`, and `activeBacklogs` from strings to numbers with a
+small `toNumericValue` helper (blank or non-numeric input becomes `NaN`,
+which `validateStudentProfile` correctly rejects) while leaving `branch`
+and `skills` as raw strings for `validation.js`/`normalizeSkills` to
+handle; call `validateStudentProfile`. If invalid, render every returned
+error code and clear results/counts. If valid, normalize, evaluate all
+five roles, sort, and render both the results list and the counts.
+
+**How Load Sample and Reset work**
+
+`Load Sample` re-fills the form with `createInitialStudentProfile()` and
+clears any validation message and previous results/counts back to the
+placeholder state, so the visible profile always matches what will be
+evaluated next. `Reset` does the same and additionally re-renders the
+Fixed Role Requirements from `ROLES` (a no-op today since roles never
+change, but included to literally satisfy "restore the fixed role
+list/state"). Neither action runs Evaluate automatically — the user
+clicks Evaluate to see results for whatever profile is currently loaded.
+This was a judgment call (flagged below) since the problem statement's
+"load the built-in profile in one action" is ambiguous about whether
+loading also evaluates.
+
+**How results and counts are rendered**
+
+`renderResults` builds one card per `EligibilityResult` in the exact
+array order it receives (already sorted by `sortEligibilityResults`):
+role ID + title, an ELIGIBLE/INELIGIBLE badge, and — only for ineligible
+roles — a `<ul>` of `failureReasons` in their original order. `renderCounts`
+derives both counts by filtering the same sorted results array by
+`status`, so the displayed counts can never disagree with the visible
+list.
+
+**How invalid profiles clear stale results**
+
+`handleEvaluate` branches on `validation.isValid` before doing anything
+eligibility-related: on the invalid path it never calls
+`normalizeStudentProfile` or the eligibility engine, and immediately
+calls `clearResultsAndCounts()`, which replaces the results list with the
+placeholder message and resets both count displays to a `–` placeholder
+(distinct from an actual `0`, since zero eligible roles is a valid result
+and must not look like "no evaluation happened").
+
+**Verification performed**
+
+Real interactive browser automation was not available in this
+environment for this step (no browser-automation tooling and no new
+dependencies were to be installed), so the following was verified
+instead, without fabricating browser-level claims:
+
+- Served the app with `python3 -m http.server` and confirmed
+  `index.html`, `css/styles.css`, and all four `js/*.js` files return
+  HTTP 200.
+- Cross-referenced every `document.getElementById(...)` call in
+  `app.js` against the `id` attributes in `index.html` — all resolve;
+  no missing element would cause a runtime `null` error.
+- Wrote a Node script that reproduces `handleEvaluate`'s exact algorithm
+  (the same numeric-coercion helper, then the real
+  `validateStudentProfile` → `normalizeStudentProfile` →
+  `evaluateEligibilityForRoles` → `sortEligibilityResults` calls) against
+  form-field values supplied as strings, the way real `<input>` elements
+  return them. All 13 checks passed: the built-in scenario (2
+  eligible / 3 ineligible, CF03/CF04/CF05's exact failure reasons), the
+  CGPA-8.5 scenario (3 eligible / 2 ineligible, eligible order CF01,
+  CF04, CF02), the CGPA-10.5 invalid case (exactly `INVALID_CGPA`, no
+  results object produced), and a blank numeric field
+  (`INVALID_BACKLOG_COUNT`).
+- Manually re-read `app.js`'s render functions and confirmed by
+  inspection that they only display values from `EligibilityResult`
+  objects and validation error codes verbatim, with no re-sorting or
+  rewording.
+
+**Not verified**: actual on-screen rendering, button click behavior, and
+absence of browser console errors — that requires opening `index.html` in
+a real browser, which I did not do. **Recommend the user open the app in
+a browser (e.g. via `python3 -m http.server` from the project folder) and
+click through the Evaluate / Load Sample / Reset / invalid-CGPA scenarios
+before treating Step 4 as fully verified.**
+
+**Issues found**
+
+None in the domain modules. `js/app.js` was updated to reference
+`eligibility.js`'s `ELIGIBILITY_STATUS` constant instead of the string
+literals `"ELIGIBLE"`/`"INELIGIBLE"`, purely to avoid duplicating those
+identifiers by hand.
+
+### Step 5 — Testing + Final Verification
+
+**Automated/static checks performed**
+
+- `node --check` on all four JS modules (`data.js`, `validation.js`,
+  `eligibility.js`, `app.js`) — no syntax errors.
+- Cross-referenced every `document.getElementById(...)` call in `app.js`
+  against the `id` attributes in `index.html` — all resolve; no dangling
+  DOM references.
+- Cross-referenced every CSS class name `app.js` applies at runtime
+  against the class selectors defined in `styles.css` — all used classes
+  are styled, no orphaned selectors.
+- Cross-referenced every named import in `app.js` against the actual
+  `export` statements in `data.js`, `validation.js`, and `eligibility.js`
+  — all imports resolve to real exports.
+- Verified `BUILT_IN_STUDENT_PROFILE` and all five `ROLES` entries in
+  `data.js` field-for-field against the problem statement's tables — no
+  drift since Step 1.
+- Confirmed `index.html` has balanced tags and no duplicate `id`
+  attributes.
+- Added a permanent, committed automated test suite under `tests/`
+  (`validation.test.mjs`, `eligibility.test.mjs`,
+  `evaluate-pipeline.test.mjs`), run with Node's built-in test runner
+  (`node --test`, exposed as `npm test` via a new minimal `package.json`
+  with **zero dependencies**). This formalizes the ad-hoc checks used to
+  verify Steps 2–4 into a suite anyone can re-run. **26/26 tests pass**,
+  covering:
+  - the built-in profile's exact result (CF01/CF02 eligible; CF03 only
+    `BRANCH_NOT_ALLOWED`; CF04 only `CGPA_BELOW_MINIMUM`; CF05 exactly
+    `GRADUATION_YEAR_NOT_ALLOWED`, `TOO_MANY_ACTIVE_BACKLOGS`,
+    `MISSING_SKILL: Docker` in order);
+  - the CGPA-8.5 boundary scenario (eligible order `CF01, CF04, CF02`);
+  - CGPA/graduation-year/backlog boundaries (0, 10, 2000, 2100, 0);
+  - independent evaluation of all five checks with every simultaneous
+    failure collected, in the required order;
+  - case-insensitive branch and skill comparisons, with no alias
+    inference;
+  - skill normalization (split/trim/dedupe) exactly matching the
+    problem statement's example;
+  - result ordering, including a synthetic same-title tie-break by role
+    ID;
+  - the invalid-CGPA (`10.5`) and blank-field cases, confirmed to never
+    reach the eligibility engine;
+  - the additional manually-reported scenario (CSE, CGPA 8.5, 2027, 1
+    backlog, Python + Git → only CF02 and CF04 eligible).
+
+**Manual browser testing**
+
+Performed by the user directly in a browser (not by me — no browser
+automation was set up or attempted per instructions for this step):
+boundary values, the CGPA-8.5/Python+Git scenario (CF02 and CF04 only),
+the CF05 multi-failure scenario, multiple simultaneous failure reasons,
+case-insensitive skill normalization, and blank/invalid fields combined
+with Reset. All six were reported as passing.
+
+**Issues discovered and fixed**
+
+None. Every check above — data fidelity, module wiring, DOM/CSS
+consistency, and the full acceptance-criteria test suite — passed on the
+first run against the existing Step 1–4 implementation. No changes were
+made to `data.js`, `validation.js`, `eligibility.js`, `app.js`,
+`index.html`, or `styles.css` in this step; the only additions are the
+new `tests/` suite and a minimal `package.json` to run it.
+
+**Final verification status**
+
+All automated checks pass (26/26), all cross-module/DOM/CSS consistency
+checks pass, the data model matches the problem statement exactly, and
+the user's manual browser testing (6 scenarios) passed. The
+implementation satisfies the problem statement's contracts, eligibility
+rules, ordering rules, and UI requirements as verified. This is the
+final step; no further steps are planned.
+
+**Final acceptance-criteria refinement: Load Sample now auto-evaluates**
+
+Step 4 had left one open question (flagged at the time): whether "Load
+Sample" should immediately show the built-in result or merely populate
+the form and wait for a separate Evaluate click. This was resolved in
+favor of the problem statement's "load the built-in profile in one
+action and show CF01 and CF02 as ELIGIBLE..." phrasing — clicking Load
+Sample now fills the form **and** immediately evaluates it, so the
+built-in result is visible without an extra click.
+
+Implementation: `js/app.js`'s Evaluate logic was extracted into a single
+`evaluateCurrentForm()` function (reads the form, validates, and on
+success normalizes/evaluates/sorts/renders); `handleEvaluate` and
+`handleLoadSample` both call it, so Load Sample reuses the exact same
+pipeline instead of a second implementation. `handleReset` was left
+untouched and still does not auto-evaluate, matching the explicit
+requirement that Reset return to a clean, unevaluated initial state.
+
+A regression test, `loading the built-in sample runs the same pipeline
+as evaluating it directly`, was added to `tests/evaluate-pipeline.test.mjs`
+asserting the Load-Sample-simulated result is `deepEqual` to evaluating
+the same profile directly through `eligibility.js`, and that it produces
+`CF01`/`CF02` as the eligible set. **Full suite: 27/27 passing** (26
+previous + 1 new). No other files were changed for this refinement.

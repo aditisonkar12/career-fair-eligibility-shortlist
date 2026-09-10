@@ -1,0 +1,10 @@
+{
+  "name": "career-fair-eligibility-shortlist",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Compact career-fair eligibility shortlist for a university placement team. Static HTML/CSS/vanilla JS, no backend.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
