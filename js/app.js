@@ -1,11 +1,13 @@
 // Application entry point.
 //
-// Step 2 scope: load the data model and run it through validation and
-// normalization. Eligibility evaluation and result rendering are
-// implemented in later steps and are intentionally absent here.
+// Step 3 scope: load the data model, validate and normalize the profile,
+// then run the eligibility engine and sort its results. Result rendering
+// and the final UI (forms, buttons, counts, validation messages) are
+// implemented in a later step and are intentionally absent here.
 
 import { createInitialStudentProfile, ROLES } from "./data.js";
 import { validateStudentProfile, normalizeStudentProfile } from "./validation.js";
+import { evaluateEligibilityForRoles, sortEligibilityResults } from "./eligibility.js";
 
 const state = {
   studentProfile: createInitialStudentProfile(),
@@ -17,16 +19,25 @@ const normalizedProfile = validation.isValid
   ? normalizeStudentProfile(state.studentProfile)
   : null;
 
-// Temporary checkpoint output for this step only — confirms validation and
-// normalization run correctly against the loaded profile. Replaced by real
-// result rendering in a later step.
-console.log("Career Fair Eligibility Shortlist — Step 2 validation checkpoint", {
+const eligibilityResults = normalizedProfile
+  ? sortEligibilityResults(evaluateEligibilityForRoles(normalizedProfile, state.roles))
+  : [];
+
+// Temporary checkpoint output for this step only — confirms validation,
+// normalization, and eligibility evaluation run correctly end to end.
+// Replaced by real result rendering in a later step.
+console.log("Career Fair Eligibility Shortlist — Step 3 eligibility checkpoint", {
   state,
   validation,
   normalizedProfile,
+  eligibilityResults,
 });
 
 const debugOutput = document.getElementById("debug-output");
 if (debugOutput) {
-  debugOutput.textContent = JSON.stringify({ state, validation, normalizedProfile }, null, 2);
+  debugOutput.textContent = JSON.stringify(
+    { state, validation, normalizedProfile, eligibilityResults },
+    null,
+    2
+  );
 }

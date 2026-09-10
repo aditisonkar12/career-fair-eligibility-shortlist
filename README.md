@@ -174,3 +174,122 @@ at this checkpoint — only field-level validation and normalization.
 
 None. No changes were needed to the Step 1 data model to support this
 step.
+
+### Step 3 — Eligibility Engine
+
+**What was implemented**
+
+- New `js/eligibility.js`, containing only the logic that compares a
+  valid, normalized `StudentProfile` against a single `Role`:
+  - `evaluateRoleEligibility(studentProfile, role)` — checks branch, CGPA,
+    graduation year, active backlogs, and required skills independently
+    and returns `{ role, status, failureReasons }`.
+  - `evaluateEligibilityForRoles(studentProfile, roles)` — maps
+    `evaluateRoleEligibility` over a list of roles, in input order.
+  - `sortEligibilityResults(results)` — a separate, pure sort step:
+    `ELIGIBLE` before `INELIGIBLE`, then role title ascending
+    case-insensitively, then role ID ascending as a tiebreaker.
+  - `ELIGIBILITY_STATUS` and `FAILURE_REASONS` exported as frozen constant
+    objects, matching the identifiers from the problem statement exactly
+    (`BRANCH_NOT_ALLOWED`, `CGPA_BELOW_MINIMUM`,
+    `GRADUATION_YEAR_NOT_ALLOWED`, `TOO_MANY_ACTIVE_BACKLOGS`; each
+    missing skill produces its own `MISSING_SKILL: <skill>` string).
+  - Reuses `equalsCaseInsensitive` from `js/validation.js` for branch and
+    skill comparisons instead of re-implementing it.
+- `js/app.js` extended to run the existing validated/normalized profile
+  through `evaluateEligibilityForRoles` + `sortEligibilityResults` and log
+  the sorted results to the same temporary debug checkpoint used in
+  Steps 1–2.
+- No form handling, DOM rendering, result cards, counters, Load
+  Sample/Reset behavior, or styling were added — those remain scoped to
+  Step 4.
+
+**Prompt used for this iteration**
+
+> Implement the reusable eligibility engine for comparing a valid,
+> normalized student profile against one fixed role (Step 3 of 5). Create
+> `js/eligibility.js` only if appropriate. Evaluate all five dimensions
+> (branch, CGPA, graduation year, active backlogs, required skills)
+> independently — never stop at the first failure — and return every
+> applicable failure in this exact order: `BRANCH_NOT_ALLOWED`,
+> `CGPA_BELOW_MINIMUM`, `GRADUATION_YEAR_NOT_ALLOWED`,
+> `TOO_MANY_ACTIVE_BACKLOGS`, then one `MISSING_SKILL: <skill>` per missing
+> skill sorted alphabetically case-insensitively. Keep sorting of a result
+> collection (eligible-first, then title, then role ID) as a separate
+> function from the per-role checks. Assume the input profile is already
+> validated and normalized by `js/validation.js` — do not duplicate that
+> logic here, and do not touch the DOM, forms, or rendering.
+
+**Why eligibility logic was separated from validation and UI**
+
+Validation answers "is this profile field usable at all?"; eligibility
+answers "does this specific role's requirements match this profile?" —
+a different question with a different input shape (it needs `ROLES`,
+which validation never touches) and a different output shape
+(`failureReasons` per role vs. a flat validation-error list). Keeping
+`eligibility.js` free of DOM/form/rendering code also means Step 4 can
+render its output however it wants (list, cards, table) without touching
+this module, and this module can be unit-tested in complete isolation, as
+done below.
+
+**Evaluating all five rules independently**
+
+`evaluateRoleEligibility` runs all five checks unconditionally — there is
+no early return on the first failure. Each check pushes its own failure
+code onto an array only if it fails, so a role that fails, say, branch,
+CGPA, and two skills at once reports all four failure reasons in one
+result, not just the first. This was verified directly (see below) with a
+synthetic profile that fails every check against `CF05` simultaneously.
+
+**Failure reason ordering**
+
+The four scalar checks are evaluated and pushed in a fixed sequence
+(branch → CGPA → graduation year → backlogs) so their relative order in
+`failureReasons` is guaranteed by construction, not by a separate sort.
+Missing skills are collected afterward, sorted case-insensitively by
+skill name, and appended last as `MISSING_SKILL: <skill>` strings — so
+the fixed four scalar reasons always precede any missing-skill reasons,
+exactly as the problem statement specifies.
+
+**Verification performed**
+
+Ran a standalone Node script (not part of the shipped app) exercising
+`js/eligibility.js` directly, covering every case in the Step 3
+verification scope:
+
+- Built-in profile: `CF01` and `CF02` eligible with empty
+  `failureReasons`; `CF03` ineligible with exactly
+  `["BRANCH_NOT_ALLOWED"]`; `CF04` ineligible with exactly
+  `["CGPA_BELOW_MINIMUM"]`; `CF05` ineligible with exactly
+  `["GRADUATION_YEAR_NOT_ALLOWED", "TOO_MANY_ACTIVE_BACKLOGS",
+  "MISSING_SKILL: Docker"]`, in that order.
+- A synthetic profile failing branch, CGPA, graduation year, backlogs,
+  and two skills against `CF05` returns all six failure reasons, in the
+  required order, with the two missing skills alphabetized
+  (`MISSING_SKILL: Docker` before `MISSING_SKILL: Git`).
+- CGPA exactly at a role's minimum passes; backlog count exactly at a
+  role's maximum passes (both boundaries inclusive).
+- Graduation-year membership checked against a multi-year allowed set
+  (`CF02`: `2028` accepted, `2029` rejected).
+- Branch comparison confirmed case-insensitive (`"cse"` matches `"CSE"`).
+- Skill comparison confirmed case-insensitive (`"python"`/`"sql"` satisfy
+  `Python`/`SQL`).
+- A profile missing one of two required skills reports exactly that one
+  `MISSING_SKILL` reason.
+- Eligible results confirmed to carry an empty `failureReasons` array.
+- Full built-in-profile ordering reproduces the problem statement's
+  required sequence: `CF01, CF02, CF03, CF04, CF05`.
+- The CGPA-8.5 acceptance scenario reproduces the required reordering
+  exactly: eligible group `CF01, CF04, CF02` by title, 3 eligible / 2
+  ineligible.
+- A synthetic same-title tie between two roles resolves by role ID
+  ascending.
+
+All 22 checks passed. The final UI, counts display, and validation
+messaging are **not** implemented or claimed to work at this checkpoint —
+only the eligibility engine and its sorting.
+
+**Issues found**
+
+None. No changes were needed to the Step 1 data model or the Step 2
+validation/normalization module to support this step.
