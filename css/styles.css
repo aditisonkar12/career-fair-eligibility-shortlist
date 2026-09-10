@@ -1,0 +1,36 @@
+/* Step 1: minimal baseline styling only.
+   Profile form, role cards, result list, and report layout are styled
+   when the corresponding UI is built in a later step. */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 1.5rem;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #1a1a1a;
+  background: #fafafa;
+}
+
+header h1 {
+  font-size: 1.4rem;
+  margin: 0 0 0.25rem;
+}
+
+header p {
+  margin: 0 0 1.5rem;
+  color: #555;
+}
+
+#debug-output {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 1rem;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  max-width: 40rem;
+}
