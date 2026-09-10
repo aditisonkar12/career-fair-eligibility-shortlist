@@ -76,3 +76,101 @@ feed is required.
   — none are implemented yet.
 
 No automated tests exist yet; testing is introduced in Step 5 per the plan.
+
+### Step 2 — Validation + Normalization
+
+**What was implemented**
+
+- New `js/validation.js`, containing only field-level validation and
+  branch/skill normalization for the student profile — no eligibility
+  logic and no knowledge of `ROLES`:
+  - `isValidBranch`, `isValidCgpa`, `isValidGraduationYear`,
+    `isValidActiveBacklogs` — pure per-field checks.
+  - `validateStudentProfile(profile)` — runs all four checks and returns
+    `{ isValid, errors }`, where `errors` lists every applicable code
+    (`INVALID_BRANCH`, `INVALID_CGPA`, `INVALID_GRADUATION_YEAR`,
+    `INVALID_BACKLOG_COUNT`) rather than stopping at the first failure.
+  - `normalizeBranch(branch)` — trims surrounding whitespace.
+  - `normalizeSkills(skills)` — accepts a comma-separated string (e.g. raw
+    text-input value) or an array, splits on commas, trims each entry,
+    drops empty pieces, and collapses duplicates case-insensitively while
+    keeping the first-seen casing.
+  - `equalsCaseInsensitive(a, b)` — a small shared helper for
+    trim + case-insensitive comparison, so Step 3 doesn't re-implement it.
+  - `normalizeStudentProfile(profile)` — returns a copy with `branch` and
+    `skills` normalized; numeric fields pass through unchanged.
+- `js/app.js` updated to run the loaded profile through
+  `validateStudentProfile` and, when valid, `normalizeStudentProfile`,
+  logging both to the console and the existing temporary debug output —
+  the same checkpoint pattern used in Step 1, extended rather than
+  replaced.
+- No role eligibility evaluation, failure reasons, sorting, counts, or
+  final UI were added — those remain scoped to Steps 3–4.
+
+**Prompt used for this iteration**
+
+> Implement the reusable validation and normalization layer for the
+> student profile (Step 2 of 5). Create `js/validation.js` only if
+> appropriate — keep it independent from the UI and from role eligibility
+> evaluation. Validate branch (blank → `INVALID_BRANCH`), CGPA
+> (finite, 0–10 → `INVALID_CGPA`), graduation year (whole number,
+> 2000–2100 → `INVALID_GRADUATION_YEAR`), and active backlogs (whole
+> number, ≥ 0 → `INVALID_BACKLOG_COUNT`). Normalize branch by trimming and
+> skills by splitting on commas, trimming, dropping empty entries, and
+> collapsing duplicates case-insensitively, without inferring aliases. Do
+> not implement eligibility evaluation, failure reasons, sorting, counts,
+> or the final UI in this step.
+
+**Why validation/normalization was separated from eligibility logic**
+
+The problem statement's contracts distinguish profile-level validity
+(“is this field usable at all?”) from role-level eligibility (“does this
+value satisfy a specific role's requirements?”). Keeping them in separate
+modules means the eligibility engine in Step 3 can assume it only ever
+receives an already-valid, already-normalized profile, and validation
+never needs to know that roles exist. It also matches the contract that
+"any invalid student-profile field clears earlier role results" — that
+decision belongs to the application/UI layer reading `validation.isValid`,
+not to validation.js itself.
+
+**Important AI-assisted design decision**
+
+Duplicate skills are collapsed using a case-insensitive key, but the
+*first-seen* trimmed casing is kept in the output (e.g. `"Git, Python,
+git, , SQL, Python"` → `["Git", "Python", "SQL"]`), since the problem
+statement requires case-insensitive comparison but never states that
+stored skill casing itself must change. This was a judgment call made
+explicit here so it can be revisited if Step 3 or Step 4 needs a
+different convention. Numeric fields (`cgpa`, `graduationYear`,
+`activeBacklogs`) are validated strictly as JavaScript numbers, with no
+string-to-number coercion — parsing raw form-input strings is treated as
+a Step 4 UI concern, keeping this module decoupled from input handling.
+
+**Verification performed**
+
+Ran a standalone Node script (not part of the shipped app) exercising
+`js/validation.js` directly:
+
+- Built-in profile validates with zero errors.
+- CGPA `8.1` valid; CGPA `10.5` invalid and reported as `INVALID_CGPA`.
+- CGPA `0` and `10` both accepted (inclusive boundaries).
+- Graduation years `2000` and `2100` accepted; `1999`, `2101`, and `2027.5`
+  rejected.
+- Active backlogs `0` accepted; `-1` and `1.5` rejected.
+- Blank (`""`) and whitespace-only (`"   "`) branch both rejected as
+  `INVALID_BRANCH`.
+- `" Git, Python, git, , SQL, Python "` normalizes to exactly
+  `["Git", "Python", "SQL"]`.
+- Empty comma-separated entries are ignored.
+- `"JS"` normalizes to `["JS"]`, confirming no alias is inferred into
+  `"JavaScript"`.
+- `normalizeStudentProfile` trims branch and normalizes skills while
+  leaving `cgpa` untouched.
+
+All 23 checks passed. Role eligibility is **not** verified or implemented
+at this checkpoint — only field-level validation and normalization.
+
+**Issues found**
+
+None. No changes were needed to the Step 1 data model to support this
+step.
